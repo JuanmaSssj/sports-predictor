@@ -10,11 +10,14 @@ from config import ODDS_API_KEY, ODDS_API_BASE
 _cache = {}
 
 SPORT_KEYS = {
-    'soccer':   ['soccer_epl', 'soccer_usa_mls', 'soccer_spain_la_liga',
-                 'soccer_mexico_ligamx', 'soccer_uefa_champs_league'],
-    'baseball': ['baseball_mlb'],
-    'nfl':      ['americanfootball_nfl'],
-    'nba':      ['basketball_nba'],
+    'soccer':               ['soccer_epl', 'soccer_usa_mls', 'soccer_spain_la_liga',
+                             'soccer_mexico_ligamx', 'soccer_uefa_champs_league'],
+    'baseball':             ['baseball_mlb'],
+    'baseball_mlb':         ['baseball_mlb'],
+    'nfl':                  ['americanfootball_nfl'],
+    'americanfootball_nfl': ['americanfootball_nfl'],
+    'nba':                  ['basketball_nba'],
+    'basketball_nba':       ['basketball_nba'],
 }
 
 

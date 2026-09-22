@@ -63,7 +63,7 @@ def top3(sport: str):
         enriched.sort(
             key=lambda x: (
                 x.get('sharp', {}).get('sharp_active', False),
-                abs(x.get('edge', {}).get('adjusted_edge', 0))
+                abs(x.get('edge', {}).get('adjusted_edge', 0) or 0)
             ),
             reverse=True
         )
