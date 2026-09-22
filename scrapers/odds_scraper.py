@@ -5,14 +5,13 @@ Cache 30 min. Timezone: America/Mexico_City
 """
 import time
 import requests
-from datetime import datetime, timedelta
-import pytz
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from config import ODDS_API_KEY, ODDS_API_BASE
 
 _cache = {}
-MEXICO_TZ = pytz.timezone('America/Mexico_City')
+MEXICO_TZ = ZoneInfo('America/Mexico_City')
 
-# Ligas por deporte - solo las solicitadas
 SPORT_KEYS = {
     'soccer': [
         'soccer_mexico_ligamx',
@@ -47,14 +46,14 @@ def _now_mexico():
 
 
 def _today_range_utc():
-    """Rango UTC del dia de hoy en hora Mexico (00:00 - 23:59 MX)."""
-    now_mx = _now_mexico()
-    start_mx = now_mx.replace(hour=0, minute=0, second=0, microsecond=0)
+    now_mx   = _now_mexico()
+    start_mx = now_mx.replace(hour=0,  minute=0,  second=0,  microsecond=0)
     end_mx   = now_mx.replace(hour=23, minute=59, second=59, microsecond=0)
-    return start_mx.astimezone(pytz.utc), end_mx.astimezone(pytz.utc)
+    utc      = timezone.utc
+    return start_mx.astimezone(utc), end_mx.astimezone(utc)
 
 
-def _cached_get(url: str, params: dict, ttl: int = 1800):
+def _cached_get(url, params, ttl=1800):
     key = url + str(sorted(params.items()))
     now = time.time()
     if key in _cache and now - _cache[key]['ts'] < ttl:
@@ -71,11 +70,6 @@ def _cached_get(url: str, params: dict, ttl: int = 1800):
 
 
 def get_games_with_odds(sport: str, days_ahead: int = 0) -> list:
-    """
-    Retorna partidos con momios.
-    days_ahead=0 -> hoy, days_ahead=1 -> manana, etc.
-    Filtra por hora Mexico.
-    """
     sport_keys = SPORT_KEYS.get(sport, [])
     all_games  = []
     start_utc, end_utc = _today_range_utc()
@@ -103,13 +97,11 @@ def get_games_with_odds(sport: str, days_ahead: int = 0) -> list:
             if parsed:
                 all_games.append(parsed)
 
-    # Ordenar por hora de inicio
     all_games.sort(key=lambda g: g.get('commence', ''))
     return all_games
 
 
 def get_upcoming_games(sport: str, days: int = 3) -> list:
-    """Proximos partidos en los siguientes N dias."""
     all_games = []
     for d in range(1, days + 1):
         games = get_games_with_odds(sport, days_ahead=d)
@@ -148,7 +140,6 @@ def _parse_game(game: dict, sport_key: str):
                     if o['name'] == 'Over':
                         total_line = o.get('point', 0)
 
-        # Hora en Mexico
         commence_utc = datetime.fromisoformat(
             game['commence_time'].replace('Z', '+00:00'))
         commence_mx  = commence_utc.astimezone(MEXICO_TZ)

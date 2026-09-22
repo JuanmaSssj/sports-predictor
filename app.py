@@ -5,12 +5,12 @@ Timezone: America/Mexico_City
 import os
 import json
 from datetime import datetime
-import pytz
+from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, render_template
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key')
-MEXICO_TZ = pytz.timezone('America/Mexico_City')
+MEXICO_TZ = ZoneInfo('America/Mexico_City')
 
 # ---- Imports con fallback ----
 try:
@@ -98,7 +98,7 @@ def index():
 
 @app.route('/api/health')
 def health():
-    now_mx = datetime.now(MEXICO_TZ).strftime('%d/%m/%Y %I:%M %p CT')
+    now_mx = datetime.now(tz=MEXICO_TZ).strftime('%d/%m/%Y %I:%M %p CT')
     return jsonify({
         'status': 'ok', 'time_mexico': now_mx,
         'odds': ODDS_OK, 'mlb': MLB_OK, 'nba': NBA_OK,
