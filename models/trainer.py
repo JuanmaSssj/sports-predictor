@@ -131,12 +131,14 @@ class AutoTrainer:
             from scrapers.mlb_scraper import get_today_games, get_full_game_data
             from models.sabermetrics import mlb_game_score
             games = get_today_games()
-            for g in games[:5]:
+            for g in games[:8]:
                 if not self.is_running: break
-                gid = str(g['game_id'])
-                if self._already_predicted(gid): continue
-                if not self._is_future_or_today(g.get('game_time', '')):
-                    continue
+                gid      = str(g['game_id'])
+                game_key = self._make_game_key(g['home_team'], g['away_team'], 'MLB')
+                if self._already_predicted(gid, game_key): continue
+                if not self._is_future_or_today(g.get('game_time', '')): continue
+                # Saltar partidos finalizados
+                if g.get('status', '').lower() in ('final', 'game over', 'completed'): continue
                 self.current_game = f"MLB: {g['away_team']} @ {g['home_team']}"
                 full  = get_full_game_data(g)
                 score = mlb_game_score(
@@ -145,20 +147,21 @@ class AutoTrainer:
                 )
                 pred = 'HOME' if score['prob_home'] > 0.5 else 'AWAY'
                 self._save_prediction({
-                    'game_id':    gid,
-                    'sport':      'MLB',
-                    'game':       f"{g['away_team']} @ {g['home_team']}",
-                    'home_team':  g['home_team'],
-                    'away_team':  g['away_team'],
-                    'prediction': pred,
-                    'pick_name':  g['home_team'] if pred == 'HOME' else g['away_team'],
-                    'prob':       round(score['prob_home'] if pred == 'HOME' else score['prob_away'], 3),
+                    'game_id':     gid,
+                    'game_key':    game_key,
+                    'sport':       'MLB',
+                    'game':        f"{g['away_team']} @ {g['home_team']}",
+                    'home_team':   g['home_team'],
+                    'away_team':   g['away_team'],
+                    'prediction':  pred,
+                    'pick_name':   g['home_team'] if pred == 'HOME' else g['away_team'],
+                    'prob':        round(score['prob_home'] if pred == 'HOME' else score['prob_away'], 3),
                     'home_pitcher': g.get('home_pitcher', {}).get('name', 'TBD'),
                     'away_pitcher': g.get('away_pitcher', {}).get('name', 'TBD'),
-                    'game_time':  g.get('game_time', ''),
-                    'timestamp':  datetime.now(timezone.utc).isoformat(),
-                    'correct':    None,
-                    'actual':     None,
+                    'game_time':   g.get('game_time', ''),
+                    'timestamp':   datetime.now(timezone.utc).isoformat(),
+                    'correct':     None,
+                    'actual':      None,
                 })
         except Exception as e:
             print(f'[Trainer] MLB analyze error: {e}')
@@ -168,10 +171,14 @@ class AutoTrainer:
             from scrapers.nba_scraper import get_today_games, get_team_advanced_stats, is_back_to_back
             from models.sabermetrics import nba_win_probability
             games = get_today_games()
-            for g in games[:5]:
+            for g in games[:8]:
                 if not self.is_running: break
-                gid = str(g['game_id'])
-                if self._already_predicted(gid): continue
+                gid      = str(g['game_id'])
+                game_key = self._make_game_key(str(g['home_team']), str(g['away_team']), 'NBA')
+                if self._already_predicted(gid, game_key): continue
+                # Saltar partidos en curso o finalizados
+                status = g.get('status', '').lower()
+                if any(s in status for s in ('final', 'half', 'qtr', 'end', 'in progress')): continue
                 self.current_game = f"NBA: {g['away_team']} @ {g['home_team']}"
                 h = get_team_advanced_stats(g['home_team']) if g['home_team'] else {}
                 a = get_team_advanced_stats(g['away_team']) if g['away_team'] else {}
@@ -181,6 +188,7 @@ class AutoTrainer:
                 pred = 'HOME' if r['prob_home'] > 0.5 else 'AWAY'
                 self._save_prediction({
                     'game_id':    gid,
+                    'game_key':   game_key,
                     'sport':      'NBA',
                     'game':       f"{g['away_team']} @ {g['home_team']}",
                     'home_team':  str(g['home_team']),
@@ -204,12 +212,14 @@ class AutoTrainer:
             from scrapers.nfl_scraper import get_today_games, get_team_stats
             from models.sabermetrics import nfl_win_probability
             games = get_today_games()
-            for g in games[:5]:
+            for g in games[:8]:
                 if not self.is_running: break
-                gid = str(g['game_id'])
-                if self._already_predicted(gid): continue
-                if not self._is_future_or_today(g.get('game_time', '')):
-                    continue
+                gid      = str(g['game_id'])
+                game_key = self._make_game_key(g['home_team'], g['away_team'], 'NFL')
+                if self._already_predicted(gid, game_key): continue
+                if not self._is_future_or_today(g.get('game_time', '')): continue
+                status = g.get('status', '').lower()
+                if any(s in status for s in ('final', 'halftime', 'in progress', 'end')): continue
                 self.current_game = f"NFL: {g['away_team']} @ {g['home_team']}"
                 h = get_team_stats(str(g['home_id']))
                 a = get_team_stats(str(g['away_id']))
@@ -217,6 +227,7 @@ class AutoTrainer:
                 pred = 'HOME' if r['prob_home'] > 0.5 else 'AWAY'
                 self._save_prediction({
                     'game_id':    gid,
+                    'game_key':   game_key,
                     'sport':      'NFL',
                     'game':       f"{g['away_team']} @ {g['home_team']}",
                     'home_team':  g['home_team'],
@@ -238,12 +249,15 @@ class AutoTrainer:
             from scrapers.soccer_scraper import get_today_games, get_team_stats, compute_dixon_coles_strength
             from models.sabermetrics import soccer_probabilities
             games = get_today_games()
-            for g in games[:5]:
+            for g in games[:8]:
                 if not self.is_running: break
-                gid = str(g['game_id'])
-                if self._already_predicted(gid): continue
-                if not self._is_future_or_today(g.get('game_time', '')):
-                    continue
+                gid      = str(g['game_id'])
+                game_key = self._make_game_key(g['home_team'], g['away_team'], 'Soccer')
+                if self._already_predicted(gid, game_key): continue
+                if not self._is_future_or_today(g.get('game_time', '')): continue
+                status = g.get('status', '').lower()
+                if any(s in status for s in ('final', 'full time', 'ft', 'in progress',
+                                              'halftime', 'ht', 'live')): continue
                 self.current_game = f"Soccer: {g['away_team']} @ {g['home_team']}"
                 league = g.get('league', 'epl')
                 h  = get_team_stats(str(g['home_id']), league)
@@ -254,21 +268,22 @@ class AutoTrainer:
                             ('DRAW', p['prob_draw']),
                             ('AWAY', p['prob_away'])], key=lambda x: x[1])
                 self._save_prediction({
-                    'game_id':    gid,
-                    'sport':      'Soccer',
-                    'game':       f"{g['away_team']} @ {g['home_team']}",
-                    'home_team':  g['home_team'],
-                    'away_team':  g['away_team'],
-                    'league':     league,
-                    'prediction': best[0],
-                    'pick_name':  g['home_team'] if best[0]=='HOME' else (g['away_team'] if best[0]=='AWAY' else 'Empate'),
-                    'prob':       round(best[1], 3),
+                    'game_id':     gid,
+                    'game_key':    game_key,
+                    'sport':       'Soccer',
+                    'game':        f"{g['away_team']} @ {g['home_team']}",
+                    'home_team':   g['home_team'],
+                    'away_team':   g['away_team'],
+                    'league':      league,
+                    'prediction':  best[0],
+                    'pick_name':   g['home_team'] if best[0]=='HOME' else (g['away_team'] if best[0]=='AWAY' else 'Empate'),
+                    'prob':        round(best[1], 3),
                     'lambda_home': dc['lambda_home'],
                     'lambda_away': dc['lambda_away'],
-                    'game_time':  g.get('game_time', ''),
-                    'timestamp':  datetime.now(timezone.utc).isoformat(),
-                    'correct':    None,
-                    'actual':     None,
+                    'game_time':   g.get('game_time', ''),
+                    'timestamp':   datetime.now(timezone.utc).isoformat(),
+                    'correct':     None,
+                    'actual':      None,
                 })
         except Exception as e:
             print(f'[Trainer] Soccer analyze error: {e}')
@@ -318,8 +333,13 @@ class AutoTrainer:
         return None
 
     # ---- Persistencia ----
-    def _already_predicted(self, game_id: str) -> bool:
-        return any(h['game_id'] == game_id for h in self.history)
+    def _already_predicted(self, game_id: str, game_key: str = None) -> bool:
+        """Evita duplicados por ID y por clave de partido (home+away+sport)."""
+        if any(h['game_id'] == game_id for h in self.history):
+            return True
+        if game_key and any(h.get('game_key') == game_key for h in self.history):
+            return True
+        return False
 
     def _save_prediction(self, pred: dict):
         self.history.append(pred)
