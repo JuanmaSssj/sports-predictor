@@ -191,39 +191,82 @@ async function loadPicks() {
 }
 
 function renderPicks(picks) {
+  const total = picks.total_candidates || 0;
+
+  // ---- Apuesta Fuerte ----
   const af = picks.apuesta_fuerte;
   document.getElementById('pick-fuerte').innerHTML = af ? `
     <div class="pick-card fuerte">
-      <div class="pick-title">&#128170; APUESTA FUERTE</div>
+      <div class="pick-title">&#128170; APUESTA FUERTE - ${af.market}</div>
       <div class="pick-main">${af.pick}</div>
       <div class="pick-odds">${af.moneyline>0?'+':''}${af.moneyline}</div>
-      <div class="pick-meta">Partido: ${af.game}<br>Prob: ${((af.model_prob||0)*100).toFixed(1)}% | Edge: +${((af.edge||0)*100).toFixed(1)}% | Confianza: ${af.confidence}<br>Kelly 1/4: $${af.kelly_usd||0}<br>${af.reasoning||''}</div>
-    </div>` : '<div class="no-games"><p>No hay apuesta fuerte hoy</p></div>';
+      <div class="pick-meta">
+        &#128336; ${af.time_mx || ''}<br>
+        Partido: ${af.game}<br>
+        Modelo: <strong>${((af.model_prob||0)*100).toFixed(1)}%</strong> vs Mercado: ${((af.mkt_prob||0)*100).toFixed(1)}%<br>
+        Edge: <strong style="color:var(--green)">+${((af.edge||0)*100).toFixed(1)}%</strong> | EV: ${((af.ev||0)*100).toFixed(1)}%<br>
+        Confianza: <strong>${af.confidence}</strong> | Kelly 1/4: $${af.kelly_usd||0}<br>
+        <em style="color:var(--text2)">${af.reasoning||''}</em>
+      </div>
+    </div>` :
+    `<div class="no-games"><div class="icon">&#128683;</div><p>No hay apuesta fuerte hoy<br><small style="color:var(--text2)">${total} candidatos analizados</small></p></div>`;
 
+  // ---- Parlay Ganador ----
   const pg = picks.parlay_ganador || [];
   document.getElementById('pick-ganador').innerHTML = pg.length >= 2 ? `
     <div class="pick-card ganador">
-      <div class="pick-title">&#127919; PARLAY GANADOR</div>
+      <div class="pick-title">&#127919; PARLAY GANADOR (2 PATAS)</div>
       <div class="pick-legs">${pg.slice(0,2).map(p=>`
-        <div class="pick-leg"><span>${p.pick} <small>${p.game}</small></span><span class="leg-odds">${p.moneyline>0?'+':''}${p.moneyline}</span></div>`).join('')}
+        <div class="pick-leg">
+          <div>
+            <div style="font-weight:700">${p.pick}</div>
+            <div style="font-size:.72rem;color:var(--text2)">${p.game} | ${p.time_mx||''}</div>
+            <div style="font-size:.72rem">Modelo: ${((p.model_prob||0)*100).toFixed(1)}% | Edge: +${((p.edge||0)*100).toFixed(1)}%</div>
+          </div>
+          <span class="leg-odds">${p.moneyline>0?'+':''}${p.moneyline}</span>
+        </div>`).join('')}
       </div>
-      <div class="combined-odds">Combinado: <span class="big">${combinedOdds(pg.slice(0,2).map(p=>p.moneyline))}</span></div>
-    </div>` : '<div class="no-games"><p>No hay parlay ganador hoy</p></div>';
+      <div class="combined-odds">Momio combinado: <span class="big">${combinedOdds(pg.slice(0,2).map(p=>p.moneyline))}</span></div>
+    </div>` :
+    `<div class="no-games"><div class="icon">&#128683;</div><p>No hay 2 picks con valor suficiente hoy<br><small style="color:var(--text2)">${total} candidatos analizados</small></p></div>`;
 
-  const pr = picks.parlay_ratonero || {};
+  // ---- Parlay Ratonero ----
+  const pr    = picks.parlay_ratonero || {};
   const prLegs = pr.picks || [];
-  document.getElementById('pick-ratonero').innerHTML = prLegs.length >= 4 ? `
+  document.getElementById('pick-ratonero').innerHTML = prLegs.length >= 3 ? `
     <div class="pick-card ratonero">
       <div class="pick-title">&#128045; PARLAY RATONERO (${prLegs.length} PATAS)</div>
       <div class="pick-legs">${prLegs.map(p=>`
-        <div class="pick-leg"><span>${p.pick} <small>${p.game}</small></span><span class="leg-odds">${p.moneyline>0?'+':''}${p.moneyline}</span></div>`).join('')}
+        <div class="pick-leg">
+          <div>
+            <div style="font-weight:700">${p.pick}</div>
+            <div style="font-size:.72rem;color:var(--text2)">${p.game}</div>
+            <div style="font-size:.72rem">Modelo: ${((p.model_prob||0)*100).toFixed(1)}%</div>
+          </div>
+          <span class="leg-odds">${p.moneyline>0?'+':''}${p.moneyline}</span>
+        </div>`).join('')}
       </div>
-      <div class="combined-odds">Combinado: <span class="big">${pr.combined_odds>0?'+':''}${pr.combined_odds}</span></div>
-    </div>` : '<div class="no-games"><p>No hay suficientes picks para parlay ratonero</p></div>';
+      <div class="combined-odds">Momio combinado: <span class="big">${pr.combined_odds>0?'+':''}${pr.combined_odds}</span></div>
+    </div>` :
+    `<div class="no-games"><div class="icon">&#128683;</div><p>No hay suficientes picks seguros hoy<br><small style="color:var(--text2)">${total} candidatos analizados</small></p></div>`;
 
-  document.getElementById('pick-props').innerHTML = `
-    <div class="pick-card"><div class="pick-title">&#128100; PROPS DE JUGADORES</div>
-    <div class="pick-meta" style="padding:20px;text-align:center;color:var(--text2)">Props disponibles con partidos activos del deporte seleccionado.</div></div>`;
+  // ---- Props ----
+  const props = picks.props || [];
+  document.getElementById('pick-props').innerHTML = props.length > 0 ? `
+    <div class="pick-card">
+      <div class="pick-title">&#128100; PICKS DE TOTALES / PROPS</div>
+      <div class="pick-legs">${props.map(p=>`
+        <div class="pick-leg">
+          <div>
+            <div style="font-weight:700">${p.pick}</div>
+            <div style="font-size:.72rem;color:var(--text2)">${p.game} | ${p.time_mx||''}</div>
+            <div style="font-size:.72rem">Modelo: ${((p.model_prob||0)*100).toFixed(1)}% | Edge: +${((p.edge||0)*100).toFixed(1)}%</div>
+          </div>
+          <span class="leg-odds">${p.moneyline>0?'+':''}${p.moneyline}</span>
+        </div>`).join('')}
+      </div>
+    </div>` :
+    `<div class="no-games"><p>No hay props disponibles hoy</p></div>`;
 }
 
 function combinedOdds(list) {
