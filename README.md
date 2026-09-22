@@ -1,4 +1,5 @@
 # 🏆 Sports Predictor AI
+<!-- mirror trigger -->
 
 Sistema de predicción deportiva con IA, sabermétricas avanzadas, sharp money (Kalshi/Polymarket) y auto-entrenamiento.
 
