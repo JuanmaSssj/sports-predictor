@@ -87,21 +87,29 @@ class AutoTrainer:
                 time.sleep(60)
 
     def _is_future_or_today(self, game_time_str: str) -> bool:
-        """Verifica que el partido sea de hoy o futuro (hora Mexico)."""
+        """
+        Solo acepta partidos que AUN NO han empezado o empezaron hace menos de 30 min.
+        Rechaza cualquier partido que ya termino o lleva mas de 30 min jugado.
+        """
         if not game_time_str:
-            return True
+            return False  # sin fecha = no analizar
         try:
-            # Parsear ISO o string de fecha
             if 'T' in game_time_str:
                 dt = datetime.fromisoformat(game_time_str.replace('Z', '+00:00'))
             else:
-                return True  # si no hay fecha clara, incluir
+                return False
             now_utc = datetime.now(timezone.utc)
-            # Solo partidos que empiezan en las proximas 48h o que empezaron hace menos de 4h
-            diff = (dt - now_utc).total_seconds()
-            return diff > -14400  # no mas de 4 horas en el pasado
+            diff_minutes = (dt - now_utc).total_seconds() / 60
+            # Acepta: hasta 30 min despues de inicio (partido recien empezado)
+            # Rechaza: mas de 30 min en el pasado (partido en curso o terminado)
+            return diff_minutes > -30
         except:
-            return True
+            return False
+
+    def _make_game_key(self, home: str, away: str, sport: str) -> str:
+        """Clave unica por partido (evita duplicados home/away invertidos)."""
+        teams = sorted([home.lower().strip(), away.lower().strip()])
+        return f"{sport}_{teams[0]}_{teams[1]}"
 
     def _analyze_all_sports(self):
         sports = [
