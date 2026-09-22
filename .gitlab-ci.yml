@@ -1,0 +1,21 @@
+# Mirror automatico GitLab -> GitHub
+# Se ejecuta en cada push a main
+
+stages:
+  - mirror
+
+mirror_to_github:
+  stage: mirror
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git openssh-client
+  script:
+    - git config --global user.email "mirror@gitlab.com"
+    - git config --global user.name "GitLab Mirror"
+    - git remote add github https://${GITHUB_TOKEN}@github.com/JuanmaSssj/sports-predictor.git || true
+    - git remote set-url github https://${GITHUB_TOKEN}@github.com/JuanmaSssj/sports-predictor.git
+    - git fetch --unshallow || true
+    - git push github HEAD:main --force
+  only:
+    - main
+  allow_failure: false
