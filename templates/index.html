@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sports Predictor AI</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <span class="logo">&#127942; SPORTS PREDICTOR AI</span>
+  </div>
+  <div class="header-right">
+    <div id="training-badge" class="badge badge-off">&#9899; IA INACTIVA</div>
+    <button id="btn-train" class="btn-train" onclick="toggleTraining()">&#9889; ENTRENAR IA</button>
+  </div>
+</header>
+
+<!-- NAV DEPORTES -->
+<nav class="sport-nav">
+  <button class="sport-btn active" data-sport="soccer" onclick="selectSport('soccer', this)">&#9917; FUTBOL</button>
+  <button class="sport-btn" data-sport="baseball" onclick="selectSport('baseball', this)">&#9918; BEISBOL</button>
+  <button class="sport-btn" data-sport="nfl" onclick="selectSport('nfl', this)">&#127944; NFL</button>
+  <button class="sport-btn" data-sport="nba" onclick="selectSport('nba', this)">&#127936; NBA</button>
+</nav>
+
+<!-- PANEL DE ENTRENAMIENTO -->
+<div id="training-panel" class="training-panel hidden">
+  <div class="training-header">
+    <span class="pulse">&#9679;</span> ENTRENAMIENTO ACTIVO
+    <button class="btn-stop" onclick="toggleTraining()">&#9632; DETENER</button>
+  </div>
+  <div class="training-stats">
+    <div class="stat-box">
+      <div class="stat-label">WIN RATE</div>
+      <div class="stat-value" id="tr-winrate">0.0%</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">ANALIZADOS</div>
+      <div class="stat-value" id="tr-total">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">CORRECTOS</div>
+      <div class="stat-value" id="tr-correct">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">ULTIMOS 10</div>
+      <div class="stat-value" id="tr-last10">-</div>
+    </div>
+  </div>
+  <div class="training-status" id="tr-status">Iniciando...</div>
+  <div class="training-game" id="tr-game"></div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- TOP 3 JUEGOS -->
+  <section class="section">
+    <div class="section-header">
+      <h2 id="section-title">&#128293; TOP 3 JUEGOS DEL DIA - FUTBOL</h2>
+      <span class="updated" id="last-updated"></span>
+    </div>
+    <div id="games-container" class="games-grid">
+      <div class="loading">&#8987; Cargando partidos...</div>
+    </div>
+  </section>
+
+  <!-- PICKS DEL DIA -->
+  <section class="section">
+    <div class="section-header">
+      <h2>&#127919; PICKS DEL DIA</h2>
+      <button class="btn-picks" onclick="loadPicks()">&#128260; Actualizar Picks</button>
+    </div>
+    <div class="picks-tabs">
+      <button class="pick-tab active" onclick="showPickTab('fuerte', this)">&#128170; APUESTA FUERTE</button>
+      <button class="pick-tab" onclick="showPickTab('ganador', this)">&#127919; PARLAY GANADOR</button>
+      <button class="pick-tab" onclick="showPickTab('ratonero', this)">&#128045; PARLAY RATONERO</button>
+      <button class="pick-tab" onclick="showPickTab('props', this)">&#128100; PROPS</button>
+    </div>
+    <div id="picks-container">
+      <div id="pick-fuerte" class="pick-panel active">
+        <div class="loading">Cargando...</div>
+      </div>
+      <div id="pick-ganador" class="pick-panel hidden">
+        <div class="loading">Cargando...</div>
+      </div>
+      <div id="pick-ratonero" class="pick-panel hidden">
+        <div class="loading">Cargando...</div>
+      </div>
+      <div id="pick-props" class="pick-panel hidden">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORIAL DE ENTRENAMIENTO -->
+  <section class="section" id="history-section" style="display:none">
+    <div class="section-header">
+      <h2>&#128202; HISTORIAL DE PREDICCIONES IA</h2>
+    </div>
+    <div id="history-container"></div>
+  </section>
+
+</main>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
