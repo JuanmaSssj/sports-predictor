@@ -1,6 +1,4 @@
 # Mirror automatico GitLab -> GitHub
-# Se ejecuta en cada push a main
-
 stages:
   - mirror
 
@@ -9,13 +7,18 @@ mirror_to_github:
   image: alpine:latest
   before_script:
     - apk add --no-cache git openssh-client
-  script:
     - git config --global user.email "mirror@gitlab.com"
     - git config --global user.name "GitLab Mirror"
-    - git remote add github https://${GITHUB_TOKEN}@github.com/JuanmaSssj/sports-predictor.git || true
-    - git remote set-url github https://${GITHUB_TOKEN}@github.com/JuanmaSssj/sports-predictor.git
-    - git fetch --unshallow || true
+    - git config --global http.postBuffer 524288000
+  script:
+    - echo "Configurando remote de GitHub..."
+    - git remote remove github 2>/dev/null || true
+    - git remote add github "https://JuanmaSssj:${GITHUB_TOKEN}@github.com/JuanmaSssj/sports-predictor.git"
+    - echo "Haciendo fetch completo..."
+    - git fetch --unshallow 2>/dev/null || git fetch --all
+    - echo "Pusheando a GitHub..."
     - git push github HEAD:main --force
+    - echo "Mirror completado exitosamente!"
   only:
     - main
   allow_failure: false
