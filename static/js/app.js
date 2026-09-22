@@ -285,21 +285,44 @@ async function loadHistory() {
     const data = await res.json();
     const c    = document.getElementById('history-container');
     if (!data.history || !data.history.length) {
-      c.innerHTML = '<div class="loading">La IA aun no tiene predicciones registradas...</div>';
+      c.innerHTML = '<div class="loading">La IA aun no tiene predicciones registradas. Iniciando analisis...</div>';
       return;
     }
     c.innerHTML = `<table class="history-table">
-      <thead><tr><th>DEPORTE</th><th>PARTIDO</th><th>PRED.</th><th>PROB.</th><th>RESULTADO</th><th>OK</th><th>FECHA</th></tr></thead>
-      <tbody>${data.history.map(h=>`
+      <thead>
         <tr>
-          <td>${h.sport}</td>
-          <td style="font-size:.75rem">${h.game}</td>
-          <td><strong>${h.prediction}</strong></td>
-          <td>${h.prob?(h.prob*100).toFixed(1)+'%':'-'}</td>
-          <td>${h.actual||'<span class="pending">Pendiente</span>'}</td>
-          <td>${h.correct===null?'<span class="pending">-</span>':h.correct?'<span class="win">&#10003; W</span>':'<span class="loss">&#10007; L</span>'}</td>
-          <td style="font-size:.72rem">${h.timestamp?new Date(h.timestamp).toLocaleDateString('es-MX'):''}</td>
-        </tr>`).join('')}
+          <th>DEPORTE</th><th>PARTIDO</th><th>PICK</th>
+          <th>PROB.</th><th>DETALLE</th><th>RESULTADO</th><th>OK</th><th>HORA MX</th>
+        </tr>
+      </thead>
+      <tbody>${data.history.map(h => {
+        const timeMx = h.timestamp
+          ? new Date(h.timestamp).toLocaleString('es-MX',
+              {timeZone:'America/Mexico_City', day:'2-digit', month:'2-digit',
+               hour:'2-digit', minute:'2-digit', hour12:true})
+          : '-';
+        const detail = h.home_pitcher
+          ? `P: ${h.home_pitcher} vs ${h.away_pitcher}`
+          : h.net_diff !== undefined
+          ? `NetRtg diff: ${h.net_diff}`
+          : h.lambda_home !== undefined
+          ? `xG: ${h.lambda_home} vs ${h.lambda_away}`
+          : '';
+        return `<tr>
+          <td><span class="sport-tag">${h.sport}</span></td>
+          <td style="font-size:.78rem;font-weight:600">${h.game}</td>
+          <td><strong style="color:var(--accent)">${h.pick_name || h.prediction}</strong></td>
+          <td>${h.prob ? (h.prob*100).toFixed(1)+'%' : '-'}</td>
+          <td style="font-size:.72rem;color:var(--text2)">${detail}</td>
+          <td>${h.actual || '<span class="pending">En espera...</span>'}</td>
+          <td>${h.correct === null
+            ? '<span class="pending">&#9679;</span>'
+            : h.correct
+            ? '<span class="win">&#10003; W</span>'
+            : '<span class="loss">&#10007; L</span>'}</td>
+          <td style="font-size:.72rem;color:var(--text2)">${timeMx}</td>
+        </tr>`;
+      }).join('')}
       </tbody></table>`;
   } catch(e) { console.error('History error:', e); }
 }
