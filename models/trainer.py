@@ -251,6 +251,8 @@ class AutoTrainer:
                 if actual is not None:
                     pred['actual']  = actual
                     pred['correct'] = (pred['prediction'] == actual)
+            except Exception as e:
+                print(f'[Trainer] Verify pred error: {e}')
         self._save_history()
 
     def _fetch_actual_result(self, pred: dict) -> str | None:
