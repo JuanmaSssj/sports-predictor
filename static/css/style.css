@@ -168,6 +168,56 @@ body {
 }
 .updated { font-size: 0.75rem; color: var(--text2); }
 
+.time-mx {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-left: 16px;
+}
+
+.game-league {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.upcoming-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.upcoming-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  transition: border-color 0.2s;
+}
+.upcoming-card:hover { border-color: var(--accent); }
+
+.upcoming-teams {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.upcoming-teams span { color: var(--text2); margin: 0 4px; }
+
+.upcoming-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+.upcoming-time    { color: var(--accent); }
+.upcoming-league  { color: var(--text2); background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
+.upcoming-total   { color: var(--blue); }
+.upcoming-ml      { color: var(--green); }
+
+.stat-value.small { font-size: 0.9rem; letter-spacing: 1px; }
+
 /* GAMES GRID */
 .games-grid {
   display: grid;
