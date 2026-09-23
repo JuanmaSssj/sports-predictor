@@ -14,11 +14,11 @@ MEXICO_TZ = ZoneInfo('America/Mexico_City')
 
 # ---- Imports con fallback ----
 try:
-    from scrapers.odds_scraper import (get_games_with_odds, get_upcoming_games,
-                                        american_to_prob as a2p)
+    from scrapers.espn_odds_scraper import (get_games_with_odds, get_upcoming_games,
+                                             american_to_prob as a2p)
     ODDS_OK = True
 except Exception as e:
-    print(f'[WARN] odds_scraper: {e}'); ODDS_OK = False
+    print(f'[WARN] espn_odds_scraper: {e}'); ODDS_OK = False
 
 try:
     from scrapers.mlb_scraper import get_today_games as mlb_today, get_full_game_data
@@ -255,10 +255,27 @@ def _enrich_game(g: dict, sport: str) -> dict:
                 result['totals_mc'] = {'over_1.5': mc['over_1.5'], 'over_2.5': mc['over_2.5'],
                                         'over_3.5': mc['over_3.5'], 'btts': mc['btts']}
             elif sport in ('nba', 'nfl', 'baseball'):
-                exp  = model.get('expected_total') or g.get('total_line') or 220
-                line = g.get('total_line') or exp
-                std  = 12 if sport == 'nba' else (7 if sport == 'nfl' else 2.5)
-                mc   = monte_carlo_totals(float(exp), float(std), float(line))
+                # Anclar el expected_total al mercado si existe
+                market_total = g.get('total_line')
+                model_total  = model.get('expected_total')
+
+                if sport == 'baseball':
+                    std = 4.0
+                    if market_total and model_total:
+                        exp = 0.6 * float(market_total) + 0.4 * float(model_total)
+                    else:
+                        exp = market_total or model_total or 8.5
+                    line = market_total or exp
+                elif sport == 'nba':
+                    std = 12
+                    exp = model_total or market_total or 220
+                    line = market_total or exp
+                elif sport == 'nfl':
+                    std = 7
+                    exp = model_total or market_total or 44
+                    line = market_total or exp
+
+                mc = monte_carlo_totals(float(exp), float(std), float(line))
                 result['totals_mc'] = {'over_prob': mc['over_prob'], 'under_prob': mc['under_prob'],
                                         'line': line, 'expected': exp}
         except Exception as e: print(f'[enrich] mc: {e}')
@@ -271,10 +288,42 @@ def _get_model_probs(g: dict, sport: str) -> dict:
     home_id = g.get('home_id', '')
     away_id = g.get('away_id', '')
     if sport == 'baseball' and MLB_OK:
+        # Enriquecer con stats reales de MLB Stats API
         full = get_full_game_data(g)
-        return {**mlb_game_score(full.get('home_batting', {}), full.get('away_batting', {}),
-                                  full.get('home_pitcher_stats', {}), full.get('away_pitcher_stats', {})),
-                'sport': 'MLB'}
+
+        # Validar que tenemos data real (evitar 50/50)
+        home_pitcher = full.get('home_pitcher_stats', {})
+        away_pitcher = full.get('away_pitcher_stats', {})
+        home_batting = full.get('home_batting', {})
+        away_batting = full.get('away_batting', {})
+
+        if not home_pitcher or not away_pitcher or not home_batting or not away_batting:
+            print(f'[WARN] MLB data incompleta para {g.get("home_team")} vs {g.get("away_team")}')
+            print(f'  home_pitcher keys: {list(home_pitcher.keys())[:5]}')
+            print(f'  home_batting keys: {list(home_batting.keys())[:5]}')
+
+        # Modelo nuevo
+        from models.baseball_model import predict_baseball_game
+
+        home_data = {
+            'pitcher_stats': home_pitcher,
+            'batting': home_batting,
+            'record': full.get('home_record', {}),
+        }
+        away_data = {
+            'pitcher_stats': away_pitcher,
+            'batting': away_batting,
+            'record': full.get('away_record', {}),
+        }
+
+        prediction = predict_baseball_game(home_data, away_data)
+        prediction['sport'] = 'MLB'
+
+        # Guardar xTotals para el Monte Carlo de totales
+        prediction['expected_total'] = prediction.get('expected_total', 8.8)
+
+        return prediction
+
     elif sport == 'nba' and NBA_OK:
         h = get_team_advanced_stats(int(home_id)) if home_id else {}
         a = get_team_advanced_stats(int(away_id)) if away_id else {}

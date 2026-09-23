@@ -183,19 +183,123 @@ def get_team_last_n(team_id: int, n: int = 10) -> dict:
     return {'wins': 0, 'losses': 0, 'win_pct': .500}
 
 
+def get_team_last_n(team_id: int, n: int = 10) -> dict:
+    """
+    Record del equipo y racha actual.
+    Usa el endpoint /standings que agrupa todos los equipos de una sola llamada.
+    """
+    standings = _get('/standings', {
+        'leagueId': '103,104',
+        'season': date.today().year,
+        'hydrate': 'team,record',
+    })
+    if not standings:
+        return {'wins': 0, 'losses': 0, 'win_pct': .500}
+
+    try:
+        for record in standings.get('records', []):
+            for tr in record.get('teamRecords', []):
+                if tr['team']['id'] == team_id:
+                    w = tr.get('wins', 0)
+                    l = tr.get('losses', 0)
+                    # Buscar record de ultimos 10
+                    l10_w = l10_l = 0
+                    for split in tr.get('records', {}).get('splitRecords', []):
+                        if split.get('type') == 'lastTen':
+                            l10_w = split.get('wins', 0)
+                            l10_l = split.get('losses', 0)
+                            break
+                    return {
+                        'wins': w,
+                        'losses': l,
+                        'win_pct': round(w / max(w + l, 1), 3),
+                        'last10_wins': l10_w,
+                        'last10_losses': l10_l,
+                        'last10_pct': round(l10_w / max(l10_w + l10_l, 1), 3),
+                        'streak': tr.get('streak', {}).get('streakCode', 'W1'),
+                    }
+    except Exception as e:
+        print(f'[MLB] get_team_last_n error: {e}')
+
+    return {'wins': 0, 'losses': 0, 'win_pct': .500}
+
+def get_probable_pitcher_for_team(team_id: int, game_date: str = None) -> dict:
+    """
+    Obtiene el probable pitcher de un equipo para una fecha dada.
+    Retorna {'name': str, 'id': int} o {'name': 'TBD', 'id': None}.
+    """
+    if not game_date:
+        game_date = date.today().strftime('%Y-%m-%d')
+    # Normalizar formato de fecha a YYYY-MM-DD
+    try:
+        if 'T' in game_date:
+            game_date = game_date.split('T')[0]
+    except Exception:
+        pass
+
+    data = _get('/schedule', {
+        'sportId': 1,
+        'date': game_date,
+        'hydrate': 'probablePitcher,team',
+    })
+    if not data:
+        return {'name': 'TBD', 'id': None}
+
+    for date_entry in data.get('dates', []):
+        for g in date_entry.get('games', []):
+            home = g['teams']['home']
+            away = g['teams']['away']
+            for side in (home, away):
+                if side['team']['id'] == team_id:
+                    p = side.get('probablePitcher', {})
+                    if p:
+                        return {'name': p.get('fullName', 'TBD'), 'id': p.get('id')}
+    return {'name': 'TBD', 'id': None}
+
 def get_full_game_data(game: dict) -> dict:
-    """Enriquece un partido con todas las stats disponibles."""
-    home_id = game['home_id']
-    away_id = game['away_id']
-    home_p  = game['home_pitcher']['id']
-    away_p  = game['away_pitcher']['id']
+    """
+    Enriquece un partido con todas las stats disponibles.
+    Compatible con scraper de ESPN (sin pitchers) y The Odds API (con pitchers).
+    Si no vienen pitchers en el game dict, los busca en MLB Stats API por equipo+fecha.
+    """
+    home_id = game.get('home_id')
+    away_id = game.get('away_id')
+
+    if not home_id or not away_id:
+        print(f'[MLB] Falta home_id/away_id en {game.get("home_team")} vs {game.get("away_team")}')
+        return {
+            **game,
+            'home_batting': {}, 'away_batting': {},
+            'home_pitcher_stats': {}, 'away_pitcher_stats': {},
+            'home_record': {}, 'away_record': {},
+        }
+
+    # --- Obtener IDs de pitchers ---
+    # Caso 1: vienen en el game dict (formato viejo The Odds API)
+    home_p = None
+    away_p = None
+    if isinstance(game.get('home_pitcher'), dict):
+        home_p = game['home_pitcher'].get('id')
+    if isinstance(game.get('away_pitcher'), dict):
+        away_p = game['away_pitcher'].get('id')
+
+    # Caso 2: no vienen (formato ESPN) -> los buscamos por team_id + fecha
+    game_date = game.get('game_time') or game.get('game_date')
+    if not home_p:
+        hp = get_probable_pitcher_for_team(home_id, game_date)
+        home_p = hp.get('id')
+    if not away_p:
+        ap = get_probable_pitcher_for_team(away_id, game_date)
+        away_p = ap.get('id')
 
     return {
         **game,
-        'home_batting':  get_team_batting_stats(home_id),
-        'away_batting':  get_team_batting_stats(away_id),
-        'home_pitcher_stats': get_pitcher_stats(home_p),
-        'away_pitcher_stats': get_pitcher_stats(away_p),
-        'home_record':   get_team_last_n(home_id),
-        'away_record':   get_team_last_n(away_id),
+        'home_pitcher': {'id': home_p, 'name': 'TBD'},
+        'away_pitcher': {'id': away_p, 'name': 'TBD'},
+        'home_batting': get_team_batting_stats(home_id),
+        'away_batting': get_team_batting_stats(away_id),
+        'home_pitcher_stats': get_pitcher_stats(home_p) if home_p else {},
+        'away_pitcher_stats': get_pitcher_stats(away_p) if away_p else {},
+        'home_record': get_team_last_n(home_id),
+        'away_record': get_team_last_n(away_id),
     }
